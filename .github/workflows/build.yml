@@ -15,11 +15,22 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
       - run: npm install -g cordova
+      - name: Patch printer call
+        working-directory: mm2g-android16
+        run: |
+          python3 - <<'PY'
+          p='www/components/common/pdf-services.js'
+          s=open(p).read()
+          old='cordova.plugins.printer.print(exportHtml.html(), fileName,result);'
+          new='try { if (window.cordova && cordova.plugins && cordova.plugins.printer) { cordova.plugins.printer.print(exportHtml.html(), fileName, result); } else { window.alert("PDF export is not available in this build."); } } catch (e) { console.log(e); }'
+          assert old in s
+          open(p,'w').write(s.replace(old,new))
+          PY
       - name: Build
         working-directory: mm2g-android16
         run: |
           cordova platform add android@15.0.0
-          cordova plugin add cordova-plugin-file cordova-plugin-device cordova-plugin-zip cordova-plugin-printer cordova-plugin-sqlite-2
+          cordova plugin add cordova-plugin-file cordova-plugin-device cordova-plugin-zip cordova-plugin-sqlite-2
           cordova build android --debug
       - uses: actions/upload-artifact@v4
         with:
